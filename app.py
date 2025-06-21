@@ -1,5 +1,4 @@
 import json
-
 from bson import ObjectId
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -32,7 +31,7 @@ from services.questionnaire_service import QuestionnaireService
 from services.question_service import QuestionService
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins=["https://yourusername.pythonanywhere.com", "http://localhost:*"])
 
 # Load environment variables
 load_dotenv()
@@ -40,16 +39,21 @@ mongo_uri = os.getenv("MONGO_URI")
 if not mongo_uri:
     raise ValueError("MONGO_URI not set in environment variables")
 
-firebase_cred_path = os.getenv("FIREBASE_CRED_PATH","/etc/secrets/my-mobile-appli-firebase-adminsdk-fbsvc-4a65010b4b.json")
-if not firebase_cred_path or not os.path.exists(firebase_cred_path):
-    raise ValueError("FIREBASE_CRED_PATH not set or file not found")
-
-# Initialize MongoDB and Firestore
-client = MongoClient(mongo_uri)
-mongo_db = client["dev_mobile"]
-cred = credentials.Certificate(firebase_cred_path)
+# Firebase setup
+firebase_cred_json = os.getenv("FIREBASE_CRED_JSON")
+if not firebase_cred_json:
+    raise ValueError("FIREBASE_CRED_JSON environment variable is not set")
+try:
+    firebase_cred_dict = json.loads(firebase_cred_json)
+except json.JSONDecodeError as e:
+    raise ValueError(f"Invalid FIREBASE_CRED_JSON format: {str(e)}")
+cred = credentials.Certificate(firebase_cred_dict)
 firebase_admin.initialize_app(cred)
 firestore_db = firestore.client()
+
+# Initialize MongoDB
+client = MongoClient(mongo_uri)
+mongo_db = client["dev_mobile"]
 
 # Initialize repositories
 user_repository = UserRepository(mongo_db, firestore_db)
@@ -243,20 +247,21 @@ def update_questionnaire(questionnaire_id):
 def toggle_questionnaire_status(questionnaire_id):
     data = request.get_json()
     is_active = data.get("is_active", True)
-    print("the status of activate is : " , is_active)
+    print("the status of activate is : ", is_active)
     response, status = questionnaire_service.toggle_questionnaire_status(questionnaire_id, is_active)
     return jsonify(response), status
 
 @app.route('/duplicate_questionnaire/<questionnaire_id>', methods=['POST'])
 def duplicate_questionnaire(questionnaire_id):
     data = request.get_json()
-    response, status = questionnaire_service.duplicate_questionnaire(questionnaire_id,data)
+    response, status = questionnaire_service.duplicate_questionnaire(questionnaire_id, data)
     return jsonify(response), status
 
 @app.route('/add_question', methods=['POST'])
 def add_question():
     data = request.get_json()
-
+    response, status = question_service.add_question(data)
+    return jsonify(response), status
 
 @app.route('/questionnaires', methods=['POST'])
 def get_questionnaires():
@@ -432,4 +437,4 @@ def upload_csv():
 
 # 🚀 Lancer l'app
 if __name__ == '__main__':
-    app.run(host='0.0.0.0',debug=True)
+    app.run(host='0.0.0.0', debug=True)
