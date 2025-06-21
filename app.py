@@ -40,7 +40,7 @@ mongo_uri = os.getenv("MONGO_URI")
 if not mongo_uri:
     raise ValueError("MONGO_URI not set in environment variables")
 
-firebase_cred_path = os.getenv("FIREBASE_CRED_PATH")
+firebase_cred_path = os.getenv("FIREBASE_CRED_PATH","/etc/secrets/my-mobile-appli-firebase-adminsdk-fbsvc-4a65010b4b.json")
 if not firebase_cred_path or not os.path.exists(firebase_cred_path):
     raise ValueError("FIREBASE_CRED_PATH not set or file not found")
 
